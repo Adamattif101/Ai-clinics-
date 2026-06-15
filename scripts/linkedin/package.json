@@ -1,0 +1,22 @@
+{
+  "name": "linkedin-automation",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "engage": "node --loader ts-node/esm src/index.ts engage",
+    "reflect": "node --loader ts-node/esm src/index.ts reflect",
+    "setup": "node --loader ts-node/esm src/index.ts setup",
+    "engage:dry": "node --loader ts-node/esm src/index.ts engage --dry-run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "dotenv": "^17.4.2",
+    "playwright": "^1.49.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  }
+}

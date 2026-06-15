@@ -1,0 +1,65 @@
+name: LinkedIn Weekly Reflection
+
+on:
+  schedule:
+    # Sunday 5 PM UTC (adjust for your timezone)
+    - cron: '0 22 * * 0'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (draft post without publishing)'
+        type: boolean
+        default: true
+
+jobs:
+  reflect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/linkedin/package-lock.json
+
+      - name: Install dependencies
+        working-directory: scripts/linkedin
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: scripts/linkedin
+        run: npx playwright install chromium --with-deps
+
+      - name: Download this week's logs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: engagement-logs-*
+          path: scripts/linkedin/logs/
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Run weekly reflection
+        working-directory: scripts/linkedin
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            DRY_RUN=true npm run reflect
+          else
+            npm run reflect
+          fi
+        env:
+          LINKEDIN_EMAIL: ${{ secrets.LINKEDIN_EMAIL }}
+          LINKEDIN_PASSWORD: ${{ secrets.LINKEDIN_PASSWORD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Upload reflection log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: weekly-reflection-${{ github.run_id }}
+          path: scripts/linkedin/logs/weekly-*.json
+          retention-days: 90
