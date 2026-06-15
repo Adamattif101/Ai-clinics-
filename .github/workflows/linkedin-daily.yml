@@ -1,0 +1,63 @@
+name: LinkedIn Daily Engagement
+
+on:
+  schedule:
+    # 10 AM UTC daily — adjust timezone offset if needed
+    # e.g. for 10 AM EST add 5 hours → 15:00 UTC
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (draft comments without posting)'
+        type: boolean
+        default: false
+
+jobs:
+  engage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/linkedin/package-lock.json
+
+      - name: Install dependencies
+        working-directory: scripts/linkedin
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: scripts/linkedin
+        run: npx playwright install chromium --with-deps
+
+      - name: Run daily engagement
+        working-directory: scripts/linkedin
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            npm run engage:dry
+          else
+            npm run engage
+          fi
+        env:
+          LINKEDIN_EMAIL: ${{ secrets.LINKEDIN_EMAIL }}
+          LINKEDIN_PASSWORD: ${{ secrets.LINKEDIN_PASSWORD }}
+          LINKEDIN_NAME: ${{ secrets.LINKEDIN_NAME }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Short delay in CI — comments post in one session.
+          # For true 2-3 hour spacing, run locally or on a VPS with COMMENT_DELAY_MS=7200000
+          COMMENT_DELAY_MS: 120000
+          MAX_COMMENTS_PER_DAY: 6
+
+      - name: Upload engagement logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: engagement-logs-${{ github.run_id }}
+          path: scripts/linkedin/logs/
+          retention-days: 30
